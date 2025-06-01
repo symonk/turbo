@@ -4,6 +4,9 @@ for executing tasks concurrently with minimal overhead.
 */
 package pool
 
+type Pooler[T any] interface {
+}
+
 type WorkerPool[T any] struct {
 	maxWorkers int
 }
