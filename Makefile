@@ -7,6 +7,7 @@ help:
 ## test: Execute all the tests and collect coverage information.
 .PHONY: test
 test:
+	export GOEXPERIMENT=synctest
 	go test -v -race -timeout=10s -cover ./...
 
 ## cover: Execute all the tests and show the coverage report.
