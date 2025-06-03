@@ -23,7 +23,7 @@ func (d debugger) OnPoolStop(graceful bool) {
 	fmt.Println("pool was stopped: ", graceful)
 }
 
-func TestPoolCanBeClosedConcurrentlyWithoutIssue(t *testing.T) {
+func TestPoolCanBeClosedMultipleTimesSafely(t *testing.T) {
 	maximumWorkers := 5
 	p := New(maximumWorkers, WithHooks[any](debugger{}))
 	var wg sync.WaitGroup
@@ -34,5 +34,6 @@ func TestPoolCanBeClosedConcurrentlyWithoutIssue(t *testing.T) {
 		}
 	}(p)
 	wg.Wait()
+	p.Stop(true)
 	p.Stop(true)
 }
