@@ -56,7 +56,7 @@ func TestTasksCannotBeEnqueuedWhenClosed(t *testing.T) {
 }
 
 func TestManyTasks(t *testing.T) {
-	p := New(runtime.NumCPU(), WithHooks[int](debugger{}))
+	p := New[int](runtime.NumCPU())
 	var wg sync.WaitGroup
 	wg.Add(10_000)
 	for range 10_000 {
