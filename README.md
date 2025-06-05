@@ -7,28 +7,64 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://github.com/symonk/turbo/blob/master/LICENSE)
 
 
-> [!CAUTION]
-> turbo is currently in early phase development and not fit for use
+# ⚡ Turbo
 
-# Turbo 🧬
+**Turbo** is a blazing-fast, autoscaling worker pool library for Go, crafted with concurrency and simplicity in mind. It provides a minimal API for efficient goroutine scheduling and safe concurrent task execution.
 
-⚡ A blazing-fast worker pool library for Go, built with concurrency and simplicity in mind.
+> ⚠️ **Note**: Turbo is currently in early-phase development and not yet production-ready. Contributions and feedback are welcome!
 
-## Features
+## 🚀 Features
 
-- 🌀 Minimal API
-- ⚙️ Efficient goroutine scheduling
-- 🧵 Safe concurrent task execution
-- 📦 Designed as a pure library – no executables
+- 🔥 **Minimal API** – Designed for ease of use with just what you need  
+- ⚙️ **Efficient goroutine scheduling** – Manages workers smartly for performance  
+- 🔒 **Safe concurrency** – Submit and execute tasks safely in parallel  
+- 📚 **Library-first design** – Turbo is a Go library, not an executable  
+- 📊 **Priority queueing** *(planned)* – Execute high-priority tasks first  
+- 🌊 **Draining & pause capabilities** *(planned)* – Gracefully halt or resume task execution  
+- 🧠 **Autoscaling** *(planned)* – Scale worker count based on demand  
 
-## Example
+## 📦 Installation
+
+Install the latest version using:
 
 ```go
-p := turbo.NewPool(4)
-defer p.Close()
+go get github.com/symonk/turbo@v0.1.0
+```
 
-p.Submit(func() {
-    fmt.Println("Hello from a worker!")
-})
+> 💡 Replace `v0.1.0` with the latest version tag from the [Releases](https://github.com/symonk/turbo/releases) page if a newer one is available.
 
-p.Wait()
+## ⚡ Quick Start
+
+```go
+package main
+
+import (
+    "fmt"
+    "github.com/symonk/turbo"
+)
+
+func main() {
+    // Create a new worker pool with 4 workers
+    p := turbo.NewPool(4)
+    defer p.Close()
+
+    // Submit a task to the pool
+    p.Submit(func() {
+        fmt.Println("Hello from Turbo!")
+    })
+}
+```
+
+➡️ Check out the [examples/basic](https://github.com/symonk/turbo/tree/main/examples/basic) folder for more usage patterns.
+
+## 🤝 Contributing
+
+Contributions are welcome! To contribute:
+
+1. 🍴 Fork the repository  
+2. 🌿 Create a branch: `git checkout -b feature/your-feature-name`  
+3. 🛠️ Make your changes  
+4. ✅ Run the test suite: `go test ./...`  
+5. 💬 Commit your changes: `git commit -m 'Add your feature'`  
+6. 🚀 Push the branch: `git push origin feature/your-feature-name`  
+7. 📬 Open a pull request  
