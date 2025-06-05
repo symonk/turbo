@@ -2,8 +2,10 @@ package pool
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -51,4 +53,18 @@ func TestTasksCannotBeEnqueuedWhenClosed(t *testing.T) {
 	id, ok := p.Enqueue(func() {})
 	assert.Empty(t, id)
 	assert.False(t, ok)
+}
+
+func TestManyTasks(t *testing.T) {
+	p := New(runtime.NumCPU(), WithHooks[int](debugger{}))
+	var wg sync.WaitGroup
+	wg.Add(10_000)
+	for range 10_000 {
+		p.Enqueue(func() {
+			time.Sleep(time.Microsecond)
+			defer wg.Done()
+		})
+	}
+	p.Stop(true)
+	wg.Wait()
 }
