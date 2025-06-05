@@ -8,7 +8,7 @@ import (
 
 func BenchmarkBasic(b *testing.B) {
 	// TODO: This is not actually realistic, used as a debugging tool for now.
-	pool := New[any](runtime.NumCPU())
+	pool := NewPool(runtime.NumCPU())
 	defer pool.Stop(true)
 
 	// collect heap allocations

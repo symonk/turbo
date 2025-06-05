@@ -37,21 +37,21 @@ var (
 	ErrWorkerPoolClosed = errors.New("cannot enqueue tasks after pool was stopped")
 )
 
-type WorkerPool[T any] struct {
+type WorkerPool struct {
 	maxWorkers               int
 	stopped                  chan struct{}
 	finalized                chan struct{}
-	tasks                    chan Task[T]
-	workerQueue              chan Task[T]
+	tasks                    chan Task
+	workerQueue              chan Task
 	stopper                  sync.Once
 	workerIdleCheckFrequency time.Duration
 	hooks                    Hooker
 	closed                   atomic.Bool
 }
 
-// New creates a new worker pool and returns it
-func New[T any](maxWorkers int, options ...PoolOption[T]) *WorkerPool[T] {
-	w := &WorkerPool[T]{}
+// NewPool creates a new worker pool and returns it
+func NewPool(maxWorkers int, options ...PoolOption) *WorkerPool {
+	w := &WorkerPool{}
 	w.workerIdleCheckFrequency = defaultWorkerIdleFrequency
 	for _, option := range options {
 		option(w)
@@ -59,21 +59,23 @@ func New[T any](maxWorkers int, options ...PoolOption[T]) *WorkerPool[T] {
 	w.maxWorkers = max(1, maxWorkers)
 	w.stopped = make(chan struct{})
 	w.finalized = make(chan struct{})
-	w.tasks = make(chan Task[T])
-	w.workerQueue = make(chan Task[T])
+	w.tasks = make(chan Task)
+	w.workerQueue = make(chan Task)
 	go w.dispatch()
 	return w
 }
 
 // dispatch is an asynchronous event loop processing tasks
 // as they enter the worker pool queues.
-func (w *WorkerPool[T]) dispatch() {
+func (w *WorkerPool) dispatch() {
 	defer close(w.finalized)
 	var nextWorkerId int
 	var currentWorkers int
 	var workerWg sync.WaitGroup
 
-	idleChecker := time.NewTicker(w.workerIdleCheckFrequency)
+	// Setup a ticker for autoscaling (down) operations.
+	autoScaler := time.NewTicker(w.workerIdleCheckFrequency)
+	defer autoScaler.Stop()
 
 eventloop:
 	for {
@@ -91,15 +93,16 @@ eventloop:
 				nextWorkerId++
 				w.startWorker(nextWorkerId, task, &workerWg)
 				currentWorkers++
+				continue // avoid putting the task on twice.
 			}
 			w.workerQueue <- task
-		case <-idleChecker.C:
-			// TODO: Determine if workers are idle and require a potential shutdown
+		case <-autoScaler.C:
+			//
 		}
 	}
 	// TODO: Consider how we gracefully exit and clean up if requested.
 	for range currentWorkers {
-		w.stopWorker(&workerWg)
+		w.stopWorker()
 	}
 
 	workerWg.Wait()
@@ -112,7 +115,7 @@ eventloop:
 // Stop is thread safe and is a blocking call until the worker pool
 // has completely ceased.  Subsequent calls to the workerpool after
 // Stop has been called will exit immediately.
-func (w *WorkerPool[T]) Stop(graceful bool) {
+func (w *WorkerPool) Stop(graceful bool) {
 	w.stopper.Do(func() {
 		close(w.stopped)
 	})
@@ -127,7 +130,7 @@ func (w *WorkerPool[T]) Stop(graceful bool) {
 //
 // nil tasks are not allowed from callers as they are used internally
 // by the pool to signal a worker shutdown.
-func (w *WorkerPool[T]) Enqueue(t Task[T]) (string, bool) {
+func (w *WorkerPool) Enqueue(t Task) (string, bool) {
 	id := uuid.New().String()
 	if t != nil {
 		select {
@@ -142,16 +145,24 @@ func (w *WorkerPool[T]) Enqueue(t Task[T]) (string, bool) {
 }
 
 // startWorker starts a new worker goroutine
-func (w *WorkerPool[T]) startWorker(id int, t Task[T], wg *sync.WaitGroup) {
+// TODO: Consider an implementation that tracks 'idleness' within the worker
+// if it gets at ask reset its idle timer, else auto shut itself down.
+func (w *WorkerPool) startWorker(id int, t Task, wg *sync.WaitGroup) {
 	wg.Add(1)
-	go worker(t, wg, w.workerQueue)
+	go worker(t, wg, w.workerQueue, func() {
+		if w.hooks != nil {
+			w.hooks.OnWorkerStop(id)
+		}
+	})
 	if w.hooks != nil {
 		w.hooks.OnWorkerStart(id)
 	}
 }
 
 // stopWorker terminates an existing worker goroutine
-func (w *WorkerPool[T]) stopWorker(wg *sync.WaitGroup) {
+// by sending in a nil tasks, this causes the decoupled
+// `worker` goroutine to pull it off and the channel and exit.
+func (w *WorkerPool) stopWorker() {
 	w.workerQueue <- nil
 }
 
@@ -160,7 +171,8 @@ func (w *WorkerPool[T]) stopWorker(wg *sync.WaitGroup) {
 //
 // If a nil tasks is sent to a worker, the worker will
 // terminate
-func worker[T any](t Task[T], wg *sync.WaitGroup, input <-chan Task[T]) {
+func worker(t Task, wg *sync.WaitGroup, input <-chan Task, callback func()) {
+	defer callback()
 	defer wg.Done()
 	for t != nil {
 		t := <-input
