@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // debugger registers arbitrary hooks on the workerpool for
@@ -36,4 +38,17 @@ func TestPoolCanBeClosedMultipleTimesSafely(t *testing.T) {
 	wg.Wait()
 	p.Stop(true)
 	p.Stop(true)
+}
+
+func TestMinTasksIsPositive(t *testing.T) {
+	p := New[int](-1)
+	assert.Equal(t, p.maxWorkers, 1)
+}
+
+func TestTasksCannotBeEnqueuedWhenClosed(t *testing.T) {
+	p := New[string](1)
+	p.Stop(true)
+	id, ok := p.Enqueue(func() {})
+	assert.Empty(t, id)
+	assert.False(t, ok)
 }
