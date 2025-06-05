@@ -99,7 +99,6 @@ eventloop:
 	}
 	// TODO: Consider how we gracefully exit and clean up if requested.
 	for range currentWorkers {
-		print("stopping worker...")
 		w.stopWorker(&workerWg)
 	}
 
