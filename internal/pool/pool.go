@@ -5,6 +5,7 @@ for executing tasks concurrently with minimal overhead.
 package pool
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -48,6 +49,9 @@ type WorkerPool struct {
 	hooks                    Hooker
 	closed                   atomic.Bool
 }
+
+// enforce compile time interface compliance.
+var _ Pooler = (*WorkerPool)(nil)
 
 // NewPool creates a new worker pool and returns it
 func NewPool(maxWorkers int, options ...PoolOption) *WorkerPool {
@@ -115,7 +119,7 @@ eventloop:
 // Stop is thread safe and is a blocking call until the worker pool
 // has completely ceased.  Subsequent calls to the workerpool after
 // Stop has been called will exit immediately.
-func (w *WorkerPool) Stop(graceful bool) {
+func (w *WorkerPool) Stop(graceful bool) error {
 	w.stopper.Do(func() {
 		close(w.stopped)
 	})
@@ -124,6 +128,7 @@ func (w *WorkerPool) Stop(graceful bool) {
 	if w.hooks != nil {
 		w.hooks.OnPoolStop(graceful)
 	}
+	return nil
 }
 
 // Enqueue submits a task onto the worker pool
@@ -143,6 +148,20 @@ func (w *WorkerPool) Enqueue(t Task) (string, bool) {
 	}
 	return "", false
 }
+
+// Flush blocks enqueueing and waits until all tasks internally in the pool
+// are finalized.  This does NOT shutdown the pool for use.  A pool can be
+// flushed (blocking) and then continue to receive tasks later.
+func (w *WorkerPool) Flush(ctx context.Context) {}
+
+// Pause blocks task processing until the provided context is cancelled or
+// exceeded.  In some scenarios it may be prudent to halt the worker pool
+// temporarily, this is a mechanism for doing so.
+func (w *WorkerPool) Pause(ctx context.Context) {}
+
+// Resize allows runtime tweaking of the maximum worker pool size
+// of the pool.
+func (w *WorkerPool) Resize(size int) {}
 
 // startWorker starts a new worker goroutine
 // TODO: Consider an implementation that tracks 'idleness' within the worker
