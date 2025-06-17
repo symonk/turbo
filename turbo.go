@@ -12,6 +12,9 @@ import "github.com/symonk/turbo/internal/pool"
 // submitted concurrently
 type WorkerPool = pool.WorkerPool
 
+// Pooler is the interface the worker pool adheres too.
+type Pooler = pool.Pooler
+
 // NewPool instantiates a new pool with options
 var NewPool = pool.NewPool
 
