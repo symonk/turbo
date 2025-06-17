@@ -1,9 +1,7 @@
 /*
-*
 package main exports a public API that clients should use.
-*
 */
-package main
+package turbo
 
 import "github.com/symonk/turbo/pool"
 
